@@ -26,7 +26,7 @@ function sinfo-nodes {
   local Flen=$( _longest_word $(sinfo --format=%F) )
   # Check if this slurm is in a federation
   local Vfmt=
-  if [ $(sacctmgr --noheader show federation) -gt 0 ]
+  if [ $(sacctmgr --noheader show federation | wc -l) -gt 0 ]
   then
     local Vlen=$( _longest_word $(sinfo --format=%V) )
     Vfmt="%${Vlen}V"
