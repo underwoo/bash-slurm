@@ -20,11 +20,18 @@ function _longest_word {
 # can be used, as this function will pass $* as-is to sinfo.  The --[fF]ormat
 # flags will be removed.
 function sinfo-nodes {
-  local given_opts=$*
-  local Clen=$( _longest_word $(sinfo --noheader --format=%V) )
-  local Plen=$( _longest_word $(sinfo --noheader --format=%P) )
-  local Dlen=$( _longest_word $(sinfo --noheader --format=%D) )
-  local Flen=$( _longest_word $(sinfo --noheader --format=%F) )
+  # Get max length of sinfo format options
+  local Plen=$( _longest_word $(sinfo --format=%P) )
+  local Dlen=$( _longest_word $(sinfo --format=%D) )
+  local Flen=$( _longest_word $(sinfo --format=%F) )
+  # Check if this slurm is in a federation
+  local Vfmt=
+  if [ $(sacctmgr --noheader show federation) -gt 0 ]
+  then
+    local Vlen=$( _longest_word $(sinfo --format=%V) )
+    Vfmt="%${Vlen}V"
+  fi
+
   local pass_opts=
   while [[ $* ]]
   do
@@ -34,10 +41,8 @@ function sinfo-nodes {
     * ) pass_opts="${pass_opts} $1"; shift 1 ;;
     esac
   done
-  cluster_len=$( _longest_word $(sinfo --format=%V) )
-  partition_len=$( _longest_word $(sinfo --format=%P) )
 
-  sinfo $pass_opts --format="%${Plen}P %${Clen}V %.${Dlen}D %.${Flen}F"
+  sinfo $pass_opts --format="%${Plen}P ${Vfmt} %.${Dlen}D %.${Flen}F"
 }
 
 fi
