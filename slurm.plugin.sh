@@ -46,3 +46,20 @@ function sinfo-nodes {
 }
 
 fi
+
+
+# job-nodes will list the nodes a job is using
+function job_nodes()
+{
+    if [ ${1:-no} == "no" ]
+    then
+        echo "usage: job_nodes <JOB_ID>"
+    else
+        local jobid=$1
+        nsteps=$( sacct -j $jobid --json | jq --raw-output '.jobs[0].steps | length' )
+        if [ "$nsteps" -gt 0 ]
+        then
+            sacct -j $jobid --json | jq --raw-output '.jobs[0].steps[1].nodes.list[]' | uniq
+        fi
+    fi
+}
