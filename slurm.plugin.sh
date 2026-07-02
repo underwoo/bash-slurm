@@ -1,6 +1,7 @@
-# If Slurm is not installed on this sytem, do not load this plugin
-if [ $(command -v squeue) ]
-then
+#! bash oh-my-bash.module
+#
+# Functions
+#
 
 function _longest_word {
   local longest=0
@@ -44,9 +45,6 @@ function sinfo-nodes {
 
   sinfo $pass_opts --format="%${Plen}P ${Vfmt} %.${Dlen}D %.${Flen}F"
 }
-
-fi
-
 
 # job-nodes will list the nodes a job is using
 function job_nodes()
