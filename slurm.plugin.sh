@@ -5,7 +5,7 @@
 
 function _longest_word {
   local longest=0
-  for word in $*
+  for word in "$@"
   do
     local len=${#word}
     if (( len > longest ))
@@ -13,7 +13,7 @@ function _longest_word {
       longest=$len
     fi
   done
-  echo $longest
+  echo "$longest"
 }
 
 # sinfo-nodes is a wrapper to the slurm sinfo command to print the total
@@ -22,42 +22,42 @@ function _longest_word {
 # flags will be removed.
 function sinfo-nodes {
   # Get max length of sinfo format options
-  local Plen=$( _longest_word $(sinfo --format=%P) )
-  local Dlen=$( _longest_word $(sinfo --format=%D) )
-  local Flen=$( _longest_word $(sinfo --format=%F) )
+  local Plen="$( _longest_word $(sinfo --format=%P) )"
+  local Dlen="$( _longest_word $(sinfo --format=%D) )"
+  local Flen="$( _longest_word $(sinfo --format=%F) )"
   # Check if this slurm is in a federation
   local Vfmt=
   if [ $(sacctmgr --noheader show federation | wc -l) -gt 0 ]
   then
-    local Vlen=$( _longest_word $(sinfo --format=%V) )
+    local Vlen="$( _longest_word $(sinfo --format=%V) )"
     Vfmt="%${Vlen}V"
   fi
 
-  local pass_opts=
+  local pass_opts=()
   while [[ $* ]]
   do
     case $1 in
     -o | --format | -O | --Format ) shift 2 ;;
     --format=* | --Format=* ) shift 1 ;;
-    * ) pass_opts="${pass_opts} $1"; shift 1 ;;
+    * ) pass_opts+=("$1"); shift 1 ;;
     esac
   done
 
-  sinfo $pass_opts --format="%${Plen}P ${Vfmt} %.${Dlen}D %.${Flen}F"
+  sinfo "${pass_opts[@]}" --format="%${Plen}P ${Vfmt} %.${Dlen}D %.${Flen}F"
 }
 
 # job-nodes will list the nodes a job is using
 function job_nodes()
 {
-    if [ ${1:-no} == "no" ]
+    if [ "${1:-no}" == "no" ]
     then
         echo "usage: job_nodes <JOB_ID>"
     else
-        local jobid=$1
-        nsteps=$( sacct -j $jobid --json | jq --raw-output '.jobs[0].steps | length' )
-        if [ "$nsteps" -gt 0 ]
+        local jobid="$1"
+        local nsteps=$( sacct -j "$jobid" --json | jq --raw-output '.jobs[0].steps | length' )
+        if [ "$nsteps" -gt 1 ]
         then
-            sacct -j $jobid --json | jq --raw-output '.jobs[0].steps[1].nodes.list[]' | uniq
+            sacct -j "$jobid" --json | jq --raw-output '.jobs[0].steps[1].nodes.list[]' | uniq
         fi
     fi
 }
