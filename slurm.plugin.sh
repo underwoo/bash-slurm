@@ -211,3 +211,85 @@ function job-nodes()
         fi
     fi
 }
+
+# slurm-stdout - Get the fully-expanded stdout file path for a completed job
+#
+# This function queries the Slurm accounting database to retrieve the stdout
+# file path for a job, then expands Slurm filename patterns (%j, %u, %x, etc.)
+# to produce the actual file path that can be used with cat, tail, or editors.
+#
+# The function handles common Slurm filename patterns:
+#   %j - Job ID
+#   %a - Array task ID
+#   %A - Array master job ID
+#   %x - Job name
+#   %u - Username
+#   %% - Literal %
+#
+# Arguments:
+#   $1 - Job ID (required, must be numeric)
+#
+# Examples:
+#   slurm-stdout 74999915              # Get stdout path
+#   cat $(slurm-stdout 74999915)       # Display stdout contents
+#   tail -f $(slurm-stdout 74999915)   # Follow stdout in real-time
+#
+# Output:
+#   Fully-expanded absolute path to the stdout file
+#
+# Returns:
+#   0 on success, 1 on error
+#
+function slurm-stdout()
+{
+    # Check if job ID argument was provided
+    if [ $# -eq 0 ]
+    then
+        echo "usage: slurm-stdout <JOB_ID>" >&2
+        return 1
+    else
+        local jobid="$1"
+
+        # Validate job ID is numeric
+        if ! [[ "$jobid" =~ ^[0-9]+$ ]]; then
+            echo "Error: job ID must be numeric (got: '$jobid')" >&2
+            return 1
+        fi
+
+        # Query sacct for job details needed for path expansion
+        # Use -E NOW to work around sacct --state filter bug
+        local job_info
+        job_info=$(sacct -j "$jobid" -o jobid,jobname,user,stdout%500 -n -P -E NOW 2>&1 | head -1)
+        if [ $? -ne 0 ] || [ -z "$job_info" ]; then
+            echo "Error: Job $jobid not found in accounting database" >&2
+            return 1
+        fi
+
+        # Parse the pipe-delimited fields
+        local jid jname user stdout
+        jid=$(echo "$job_info" | cut -d'|' -f1)
+        jname=$(echo "$job_info" | cut -d'|' -f2)
+        user=$(echo "$job_info" | cut -d'|' -f3)
+        stdout=$(echo "$job_info" | cut -d'|' -f4)
+
+        # Extract array task ID from job ID if present (format: jobid_arraytask)
+        local atid=""
+        if [[ "$jid" =~ _([0-9]+)$ ]]; then
+            atid="${BASH_REMATCH[1]}"
+        fi
+
+        # Extract base job ID (strip array task suffix)
+        local base_jid="${jid%%_*}"
+
+        # Expand Slurm filename patterns to actual values
+        stdout="${stdout//%j/$jid}"
+        stdout="${stdout//%a/$atid}"
+        stdout="${stdout//%A/$base_jid}"  # Array master job ID
+        stdout="${stdout//%x/$jname}"
+        stdout="${stdout//%u/$user}"
+        stdout="${stdout//%%/%}"  # Literal %
+
+        echo "$stdout"
+    fi
+}
+
